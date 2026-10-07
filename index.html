@@ -264,7 +264,7 @@ function scanScreen(t) {
     // Live camera where the browser allows it; otherwise the button opens the phone camera or a file picker.
     if (canLive && state.cam !== "denied") h += '<button class="shutter" type="button" id="' + (state.cam === "on" ? "shoot" : "startcam") + '" aria-label="' + t.snap + '"></button>';
     else h += '<label class="shutter" title="' + t.snap + '"><input type="file" id="camera" accept="image/*" capture="environment" aria-label="' + t.snap + '"></label>';
-    h += '<p class="muted center">' + (state.cam === "on" ? t.shootTip : state.cam === "denied" ? t.camFail : canLive ? t.camTip : t.tip) + '</p>';
+    h += '<p class="muted center">' + (state.cam === "on" ? t.shootTip : t.tip) + '</p>';
     if (state.failed) h += '<p class="alert">' + t.fail + '</p>';
     if (state.typing) h += '<div class="card"><label for="typed">' + t.typeL + '<textarea id="typed"></textarea></label><button class="btn" type="button" id="go">' + t.go + '</button></div>';
     h += '<div class="links"><label class="link">' + t.pick + '<input type="file" id="library" accept="image/*"></label>' +
@@ -374,7 +374,7 @@ app.addEventListener("click", function (e) {
   else if (b.id === "go") { var v = document.getElementById("typed").value; if (v.trim()) open(v); }
   else if (b.id === "fix") { state.fixing = true; render(); }
   else if (b.id === "refix") { state.text = document.getElementById("fixed").value; state.fixing = false; render(); }
-  else if (b.id === "again") { state.screen = "scan"; state.photo = null; state.served = ""; render(); window.scrollTo(0, 0); }
+  else if (b.id === "again") { state.screen = "scan"; state.photo = null; state.served = ""; render(); window.scrollTo(0, 0); if (canLive) startCam(); }
   else if (b.id === "copy") {
     var box = document.getElementById("msg"), done = function () { b.textContent = T[state.lang].copied; };
     var pick = function () { var r = document.createRange(); r.selectNodeContents(box); var s = getSelection(); s.removeAllRanges(); s.addRange(r); };
@@ -391,6 +391,7 @@ app.addEventListener("change", function (e) {
   render();
 });
 render();
+if (canLive) startCam();   // open the camera as soon as the app loads
 </script>
 </body>
 </html>
