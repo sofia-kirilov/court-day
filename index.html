@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Court Day</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;700&display=swap">
+<style>
+body { margin: 0; }
+[hidden] { display: none !important; }
+/* Layout: one narrow centered column, one job per screen. Scan first, then three tabs: Date, Interpreter, Paper. */
+:root {
+  --top: #ECECEF; --mid: #EFE7EA; --low: #F4D8D3; --end: #DDCBE9;   /* soft grey fading to rose and lilac */
+  --glass: rgba(255,255,255,.58); --edge: rgba(255,255,255,.95); --solid: #FFFFFF;
+  --ink: #2B2730; --muted: #6A6370; --accent: #D9481F; --mark: #FFE08A; --line: rgba(43,39,48,.14);
+  --shadow: 0 12px 32px rgba(120,86,104,.14);
+  --font: "Figtree", "Segoe UI", Arial, sans-serif;
+  color-scheme: light;
+}
+html { background: var(--top); }
+body { min-height: 100vh; background: linear-gradient(180deg, var(--top) 0%, var(--mid) 42%, var(--low) 78%, var(--end) 100%); color: var(--ink); font-family: var(--font); font-size: 17px; line-height: 1.5; padding-inline: 18px; padding-block: 18px 56px; }
+.wrap { max-width: 28rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1.3rem; }
+#app, .stack { display: flex; flex-direction: column; gap: 1.1rem; }
+header { display: flex; justify-content: space-between; align-items: center; gap: .8rem; }
+.name { font-weight: 700; font-size: 1.1rem; }
+.pill { display: flex; background: var(--glass); border: 2px solid var(--edge); border-radius: 999px; padding: 3px; box-shadow: var(--shadow); }
+.pill button { flex: 1; border: 0; background: transparent; color: var(--ink); font: inherit; font-weight: 500; padding: .5rem .95rem; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.pill button[aria-pressed="true"] { background: var(--ink); color: var(--solid); }
+h1 { font-weight: 700; font-size: 2rem; line-height: 1.1; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+h2 { font-weight: 700; font-size: 1.15rem; margin: 0; }
+p { margin: 0; }
+.muted { color: var(--muted); font-size: .92rem; }
+.card { background: var(--glass); border: 2px solid var(--edge); border-radius: 28px; box-shadow: var(--shadow); padding: 1.3rem; display: flex; flex-direction: column; gap: .8rem; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); min-width: 0; }
+.card.solid { background: var(--solid); }
+
+/* scanner */
+.finder { position: relative; aspect-ratio: 3 / 4; max-width: 100%; border-radius: 28px; overflow: hidden; border: 2px solid var(--edge); box-shadow: var(--shadow);
+  background: radial-gradient(120% 80% at 20% 15%, #F9C9B4 0%, transparent 60%), radial-gradient(90% 70% at 85% 30%, #CFE3D2 0%, transparent 60%), radial-gradient(120% 90% at 50% 100%, #D9C6EC 0%, transparent 65%), #F3ECEC; display: grid; place-items: center; }
+.finder img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sheet { width: 58%; aspect-ratio: 17 / 22; background: var(--solid); border-radius: 6px; box-shadow: 0 8px 24px rgba(80,60,80,.18); padding: 9% 8%; display: flex; flex-direction: column; gap: 6%; box-sizing: border-box; }
+.sheet i { height: 4%; border-radius: 9px; background: var(--line); }
+.sheet i.hit { background: var(--mark); width: 55%; }
+.corner { position: absolute; width: 34px; height: 34px; border: 4px solid var(--solid); filter: drop-shadow(0 1px 3px rgba(43,39,48,.35)); }
+.c1 { top: 16px; left: 16px; border-right: 0; border-bottom: 0; border-top-left-radius: 14px; }
+.c2 { top: 16px; right: 16px; border-left: 0; border-bottom: 0; border-top-right-radius: 14px; }
+.c3 { bottom: 16px; left: 16px; border-right: 0; border-top: 0; border-bottom-left-radius: 14px; }
+.c4 { bottom: 16px; right: 16px; border-left: 0; border-top: 0; border-bottom-right-radius: 14px; }
+.beam { position: absolute; left: 6%; right: 6%; height: 3px; border-radius: 3px; background: var(--accent); box-shadow: 0 0 14px var(--accent); animation: sweep 1.8s ease-in-out infinite alternate; }
+@keyframes sweep { from { top: 8%; } to { top: 92%; } }
+.status { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--solid); padding: .45rem 1rem; border-radius: 999px; font-weight: 500; white-space: nowrap; }
+.shutter { align-self: center; width: 78px; height: 78px; border-radius: 50%; background: var(--solid); border: 5px solid var(--accent); box-shadow: var(--shadow); cursor: pointer; display: grid; place-items: center; }
+.shutter::after { content: ""; width: 54px; height: 54px; border-radius: 50%; background: var(--accent); }
+.shutter input, .link input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.center { text-align: center; }
+.links { display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem 1.2rem; }
+.link { background: none; border: 0; padding: .4rem 0; font: inherit; font-weight: 500; color: var(--ink); text-decoration: underline; text-underline-offset: .22em; cursor: pointer; }
+
+/* results */
+.label { color: var(--accent); font-weight: 700; }
+.big { font-weight: 700; font-size: clamp(1.7rem, 8vw, 2.2rem); line-height: 1.12; letter-spacing: -.01em; }
+.btn { font: inherit; font-weight: 700; padding: .85rem 1.2rem; border-radius: 999px; border: 0; background: var(--ink); color: var(--solid); cursor: pointer; text-decoration: none; text-align: center; display: block; }
+.btn.soft { background: var(--solid); color: var(--ink); box-shadow: var(--shadow); }
+label { font-weight: 500; display: flex; flex-direction: column; gap: .3rem; }
+textarea, select, input[type="date"] { font: inherit; color: var(--ink); background: var(--solid); border: 2px solid var(--line); border-radius: 14px; padding: .7rem .8rem; width: 100%; box-sizing: border-box; }
+textarea { min-height: 9rem; resize: vertical; }
+ul { margin: 0; padding-left: 1.15rem; display: flex; flex-direction: column; gap: .35rem; }
+.show { font-size: 1.3rem; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.msg { white-space: pre-wrap; user-select: all; overflow-wrap: anywhere; background: var(--solid); border-radius: 14px; padding: .8rem; }
+.rows { display: flex; flex-direction: column; }
+.rows > div { padding: .65rem 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.rows > div:first-child { border-top: 0; padding-top: 0; }
+.rows strong { overflow-wrap: anywhere; }
+.doc { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; background: var(--solid); border-radius: 14px; padding: .9rem; }
+mark { background: var(--mark); color: var(--ink); border-radius: 4px; padding: 0 .15em; }
+.alert { border-left: 4px solid var(--accent); padding-left: .8rem; }
+:focus-visible, .shutter:focus-within, .link:focus-within { outline: 3px solid var(--accent); outline-offset: 3px; }
+footer { text-align: center; }
+a { color: inherit; }
+@media (prefers-reduced-motion: reduce) { .beam { animation: none; top: 50%; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="name">Court Day</div>
+    <div class="pill" role="group" aria-label="Language">
+      <button type="button" id="lang-en" data-lang="en">English</button>
+      <button type="button" id="lang-es" data-lang="es">Español</button>
+    </div>
+  </header>
+  <main id="app"></main>
+  <footer class="muted" id="foot"></footer>
+</div>
+
+<script src="ocr/tesseract.min.js"></script>
+<script>
+// ================= 1. Text in two languages =================
+var T = {
+  en: {
+    h1: "Scan your court paper", intro: "Take a photo. You'll get your date and what to do next.",
+    snap: "Take a photo of the paper", pick: "Choose a photo", type: "Type it instead", ex1: "Try an eviction example", ex2: "Try a small claims example",
+    reading: "Reading", tip: "Lay the paper flat in good light and fill the frame.",
+    fail: "The photo could not be read here. Type the words from the paper instead.",
+    typeL: "Words on the paper", go: "Read this paper", again: "Scan another paper",
+    tabs: ["Date", "Interpreter", "Paper"],
+    unknown: "This page could not tell which form this is. It reads SUM-130 (eviction summons) and SC-100 (small claims) so far. Open the Paper tab to fix the text, or scan again.",
+    sumName: "Eviction summons", sumPlain: "Your landlord started a court case to evict you. There is no court date yet. Give the court a written answer by this date, or the landlord can win without a hearing.",
+    scName: "Small claims case", scPlain: "Someone is asking the court to make you pay money. Go to court on this date. If you don't, the judge can decide without you.",
+    servedL: "What day did you get this paper?", howL: "How did you get it?", how1: "Someone handed it to me", how2: "Another way (mail, left with someone, on my door)",
+    how2Note: "The count can be different when the paper was not handed to you. Treat this date as the safe one and ask the self-help center today.",
+    deadline: "Answer due by", hearing: "Go to court on", at: "at",
+    rule: "10 court days after you got the paper. Weekends and court holidays are skipped.",
+    noDate: "No court date was found. Open the Paper tab and check the text.",
+    left: function (n) { return n === 0 ? "That is today." : n === 1 ? "That is tomorrow." : n + " days left"; },
+    passed: "This date has passed. Call the court clerk or go to the self-help center today.",
+    cal: "Add to Google Calendar", dayH: "On the day",
+    day: ["Get there 45 minutes early for security.", "Bring this paper and a photo ID.", "Tell the clerk your name and that you need an interpreter.", "If you can't go, call the clerk before the date."],
+    intP: "Court interpreters are free in California civil cases. Ask as early as you can.",
+    intL: "Language you need", cardH: "Show this at the courthouse", reqH: "Message for the clerk", reqP: "Send it or hand it in. The court form for this is INT-300.",
+    copy: "Copy message", copied: "Copied", sayH: "Say this during the hearing",
+    foundH: "What was found", caseNo: "Case number", court: "Court", dept: "Department", form: "Form", none: "Not found",
+    textH: "Text from your paper", fix: "Fix the text", wordsH: "What the words mean",
+    foot: "General information, not legal advice. Check every date with the court. Free help: ", footLink: "California Courts Self-Help Guide"
+  },
+  es: {
+    h1: "Escanee su papel de la corte", intro: "Tome una foto. Verá su fecha y qué hacer después.",
+    snap: "Tomar una foto del papel", pick: "Elegir una foto", type: "Escribirlo", ex1: "Probar un ejemplo de desalojo", ex2: "Probar un ejemplo de reclamos menores",
+    reading: "Leyendo", tip: "Ponga el papel plano, con buena luz, y llene el marco.",
+    fail: "No se pudo leer la foto aquí. Escriba las palabras del papel.",
+    typeL: "Palabras del papel", go: "Leer este papel", again: "Escanear otro papel",
+    tabs: ["Fecha", "Intérprete", "Papel"],
+    unknown: "Esta página no pudo identificar el formulario. Por ahora lee el SUM-130 (citación de desalojo) y el SC-100 (reclamos menores). Abra la pestaña Papel para corregir el texto, o escanee de nuevo.",
+    sumName: "Citación de desalojo", sumPlain: "El dueño de su vivienda empezó un caso para desalojarlo. Todavía no hay fecha de corte. Entregue una respuesta por escrito a la corte antes de esta fecha, o el dueño puede ganar sin audiencia.",
+    scName: "Caso de reclamos menores", scPlain: "Alguien le pide a la corte que usted pague dinero. Vaya a la corte en esta fecha. Si no va, el juez puede decidir sin usted.",
+    servedL: "¿Qué día recibió este papel?", howL: "¿Cómo lo recibió?", how1: "Alguien me lo entregó en la mano", how2: "De otra forma (correo, se lo dejaron a otra persona, en mi puerta)",
+    how2Note: "La cuenta puede ser distinta si no se lo entregaron en la mano. Use esta fecha como la más segura y pregunte hoy en el centro de autoayuda.",
+    deadline: "Responda antes del", hearing: "Vaya a la corte el", at: "a las",
+    rule: "10 días de corte después de recibir el papel. No se cuentan fines de semana ni días feriados de la corte.",
+    noDate: "No se encontró una fecha de corte. Abra la pestaña Papel y revise el texto.",
+    left: function (n) { return n === 0 ? "Es hoy." : n === 1 ? "Es mañana." : "Faltan " + n + " días"; },
+    passed: "Esta fecha ya pasó. Llame al secretario de la corte o vaya hoy al centro de autoayuda.",
+    cal: "Agregar a Google Calendar", dayH: "Ese día",
+    day: ["Llegue 45 minutos antes por la seguridad.", "Lleve este papel y una identificación con foto.", "Dígale al secretario su nombre y que necesita un intérprete.", "Si no puede ir, llame al secretario antes de la fecha."],
+    intP: "Los intérpretes de la corte son gratis en casos civiles de California. Pídalo lo antes posible.",
+    intL: "Idioma que necesita", cardH: "Muestre esto en la corte", reqH: "Mensaje para el secretario", reqP: "Envíelo o entréguelo. El formulario de la corte para esto es el INT-300.",
+    copy: "Copiar mensaje", copied: "Copiado", sayH: "Diga esto en la audiencia",
+    foundH: "Lo que se encontró", caseNo: "Número de caso", court: "Corte", dept: "Departamento", form: "Formulario", none: "No aparece",
+    textH: "Texto de su papel", fix: "Corregir el texto", wordsH: "Qué significan las palabras",
+    foot: "Información general, no asesoría legal. Confirme cada fecha con la corte. Ayuda gratis: ", footLink: "Guía de autoayuda de las cortes de California"
+  }
+};
+var PHRASES = [
+  ["Please speak more slowly.", "Por favor, hable más despacio."],
+  ["I did not understand. Can you repeat that?", "No entendí. ¿Puede repetirlo?"],
+  ["I need to speak with my interpreter.", "Necesito hablar con mi intérprete."],
+  ["I cannot hear my interpreter well.", "No escucho bien a mi intérprete."],
+  ["My interpreter does not speak my language or dialect.", "Mi intérprete no habla mi idioma o dialecto."]
+];
+// Legal terms with fixed translations, so the same court word is always used.
+var GLOSSARY = [
+  { re: /summons/i, en: "Summons", es: "Citación", den: "A paper that tells you a court case was started against you.", des: "Un papel que le avisa que empezaron un caso en la corte contra usted." },
+  { re: /unlawful detainer/i, en: "Unlawful detainer", es: "Retención ilícita (desalojo)", den: "The legal name for an eviction case.", des: "El nombre legal de un caso de desalojo." },
+  { re: /plaintiff/i, en: "Plaintiff", es: "Demandante", den: "The person or company that started the case.", des: "La persona o compañía que empezó el caso." },
+  { re: /defendant/i, en: "Defendant", es: "Demandado", den: "The person being sued. On this paper, that is you.", des: "La persona demandada. En este papel, es usted." },
+  { re: /served/i, en: "Served", es: "Entregado legalmente", den: "The day the paper was officially given to you.", des: "El día en que le entregaron el papel de manera oficial." },
+  { re: /judicial holidays/i, en: "Judicial holidays", es: "Días feriados judiciales", den: "Days the court is closed. They are not counted.", des: "Días en que la corte está cerrada. No se cuentan." },
+  { re: /small claims/i, en: "Small claims", es: "Reclamos menores", den: "A court for smaller money disputes. No lawyers speak for you.", des: "Una corte para disputas de dinero más pequeñas. Los abogados no hablan por usted." },
+  { re: /trial/i, en: "Trial", es: "Juicio", den: "The day you and the other side tell the judge what happened.", des: "El día en que usted y la otra parte le explican al juez lo que pasó." }
+];
+var COURTS = [
+  { re: /van nuys courthouse east/i, name: "Van Nuys Courthouse East", addr: "6230 Sylmar Avenue, Van Nuys, CA 91401" },
+  { re: /stanley mosk/i, name: "Stanley Mosk Courthouse", addr: "111 North Hill Street, Los Angeles, CA 90012" }
+];
+var EXAMPLES = {
+  sum: "SUMMONS - UNLAWFUL DETAINER - EVICTION\n(CITACION JUDICIAL - RETENCION ILICITA DE UN INMUEBLE - DESALOJO)\n\nNOTICE TO DEFENDANT: ALEX SAMPLE\nYOU ARE BEING SUED BY PLAINTIFF: EXAMPLE PROPERTIES LLC\n\nYou have 10 DAYS, not counting Saturdays and Sundays and other judicial holidays, after this summons and legal papers are served on you to file a written response at this court.\n\nThe name and address of the court is:\nVan Nuys Courthouse East, 6230 Sylmar Avenue, Van Nuys, CA 91401\n\nCASE NUMBER: 26VEUD00000\n\nForm SUM-130",
+  sc: "PLAINTIFF'S CLAIM AND ORDER TO GO TO SMALL CLAIMS COURT\n\nNotice to the person being sued: You are the defendant if your name is listed in item 2.\nPlaintiff: SAM EXAMPLE    Defendant: ALEX SAMPLE\n\nOrder to Go to Court\nThe people in items 1 and 2 must attend court:\nTrial Date: 11/18/2026   Time: 8:30 a.m.   Department: 110\nStanley Mosk Courthouse, 111 North Hill Street, Los Angeles, CA 90012\n\nCase Number: 26STSC00000\n\nForm SC-100"
+};
+
+// ================= 2. Photo to text =================
+function ocrBase() { return new URL("ocr", location.href).href; }
+function readPhoto(file, onProgress) {
+  // The language model is published as ocr/eng-model.wasm; the "?f=" makes the reader's fixed file name part of the query.
+  var job = Tesseract.createWorker("eng", 1, {
+    workerPath: ocrBase() + "/worker.min.js", corePath: ocrBase(), langPath: ocrBase() + "/eng-model.wasm?f=",
+    gzip: false, workerBlobURL: false, cacheMethod: "none",
+    logger: function (m) { if (m.status === "recognizing text") onProgress(m.progress); }
+  }).then(function (worker) {
+    return worker.recognize(file).then(function (r) { worker.terminate(); return r.data.text; });
+  });
+  var giveUp = new Promise(function (_, no) { setTimeout(function () { no(new Error("timeout")); }, 90000); });
+  return Promise.race([job, giveUp]);
+}
+
+// ================= 3. Text to facts =================
+var MONTHS = ["january","february","march","april","may","june","july","august","september","october","november","december"];
+function parsePaper(text) {
+  var out = { form: null, found: [] };
+  function keep(s) { if (s) out.found.push(s); return s; }
+  if (/SUM-?130/i.test(text) || /unlawful detainer/i.test(text)) out.form = "sum";
+  else if (/SC-?100/i.test(text) || /small claims/i.test(text)) out.form = "sc";
+  var f = text.match(/\b(SUM-?130|SC-?100)\b/i); if (f) keep(f[0]);
+  var c = text.match(/case\s*(?:number|no\.?)\s*[:#]?\s*([A-Z0-9-]{6,})/i); if (c) out.caseNo = keep(c[1]);
+  var d = text.match(/dep(?:artmen)?t\.?\s*[:#]?\s*([A-Z]?\d+[A-Z]?)\b/i); if (d) out.dept = keep(d[1]);
+  var t = text.match(/\b(\d{1,2}):(\d{2})\s*([ap])\.?\s*m\.?/i);
+  if (t) { keep(t[0]); out.hour = (+t[1] % 12) + (t[3].toLowerCase() === "p" ? 12 : 0); out.min = +t[2]; }
+  COURTS.forEach(function (k) { var m = text.match(k.re); if (m && !out.court) { out.court = k; keep(m[0]); } });
+  // Dates: prefer one that follows "trial date" or "hearing date".
+  var from = text.search(/(trial|hearing|court)\s*date/i), zone = from >= 0 ? text.slice(from) : text;
+  var n = zone.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/), w = zone.match(/\b([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})\b/);
+  if (n) { out.date = mk(+n[3], +n[1] - 1, +n[2]); keep(n[0]); }
+  else if (w && MONTHS.indexOf(w[1].toLowerCase()) >= 0) { out.date = mk(+w[3], MONTHS.indexOf(w[1].toLowerCase()), +w[2]); keep(w[0]); }
+  return out;
+}
+
+// ================= 4. Deadline engine: counting court days =================
+function mk(y, m, d) { return new Date(y, m, d, 12); }            // noon avoids daylight-saving slips
+function iso(d) { return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+function fromIso(s) { var p = s.split("-"); return mk(+p[0], +p[1] - 1, +p[2]); }
+function nth(y, m, weekday, n) { var d = mk(y, m, 1); while (d.getDay() !== weekday) d.setDate(d.getDate() + 1); d.setDate(d.getDate() + 7 * (n - 1)); return d; }
+function lastMon(y, m) { var d = mk(y, m + 1, 0); while (d.getDay() !== 1) d.setDate(d.getDate() - 1); return d; }
+function observed(d) { if (d.getDay() === 6) d.setDate(d.getDate() - 1); if (d.getDay() === 0) d.setDate(d.getDate() + 1); return d; }
+var holidayCache = {};
+function holidays(y) {   // California judicial holidays. Check against the court's posted list each year.
+  if (holidayCache[y]) return holidayCache[y];
+  var thanks = nth(y, 10, 4, 4), after = mk(y, 10, thanks.getDate() + 1);
+  var list = [observed(mk(y, 0, 1)), nth(y, 0, 1, 3), observed(mk(y, 1, 12)), nth(y, 1, 1, 3), observed(mk(y, 2, 31)),
+    lastMon(y, 4), observed(mk(y, 5, 19)), observed(mk(y, 6, 4)), nth(y, 8, 1, 1), nth(y, 8, 5, 4),
+    observed(mk(y, 10, 11)), thanks, after, observed(mk(y, 11, 25))];
+  return (holidayCache[y] = list.map(iso));
+}
+function isCourtDay(d) {
+  if (d.getDay() === 0 || d.getDay() === 6) return false;
+  var s = iso(d), y = d.getFullYear();
+  return holidays(y).indexOf(s) < 0 && holidays(y + 1).indexOf(s) < 0;   // y+1 catches Jan 1 observed on Dec 31
+}
+function addCourtDays(start, n) { var d = new Date(start); while (n > 0) { d.setDate(d.getDate() + 1); if (isCourtDay(d)) n--; } return d; }
+
+// ================= 5. Screens =================
+var state = { lang: "en", screen: "scan", tab: 0, text: "", served: "", how: "1", interp: "Spanish", busy: false, photo: null, typing: false, failed: false, fixing: false };
+var LANGS = ["Spanish", "Armenian", "Korean", "Tagalog", "Russian", "Farsi", "Vietnamese", "Mandarin", "Cantonese", "K'iche'", "Mixteco", "Zapoteco"];
+var app = document.getElementById("app");
+function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+function longDate(d) { return d.toLocaleDateString(state.lang === "es" ? "es-US" : "en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }); }
+function clock(h, m) { return ((h + 11) % 12 + 1) + ":" + ("0" + m).slice(-2) + (h < 12 ? " a.m." : " p.m."); }
+function highlight(text, found) { var html = esc(text); found.forEach(function (f) { html = html.split(esc(f)).join("<mark>" + esc(f) + "</mark>"); }); return html; }
+function calLink(p, date, title) {
+  var day = iso(date).replace(/-/g, ""), dates;
+  if (p.form === "sc" && p.hour != null) {
+    var hh = function (h) { return ("0" + h).slice(-2) + ("0" + p.min).slice(-2) + "00"; };
+    dates = day + "T" + hh(p.hour) + "/" + day + "T" + hh(Math.min(p.hour + 2, 23));
+  } else { var next = new Date(date); next.setDate(next.getDate() + 1); dates = day + "/" + iso(next).replace(/-/g, ""); }
+  var where = p.court ? p.court.name + ", " + p.court.addr : "";
+  return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(title) + "&dates=" + dates + "&ctz=America/Los_Angeles&location=" + encodeURIComponent(where) + "&details=" + encodeURIComponent("Case " + (p.caseNo || ""));
+}
+
+function scanScreen(t) {
+  var h = '<div class="stack center"><h1>' + t.h1 + '</h1><p>' + t.intro + '</p></div>';
+  h += '<div class="finder">' + (state.photo ? '<img alt="" src="' + state.photo + '">' : '<div class="sheet" aria-hidden="true"><i></i><i></i><i class="hit"></i><i></i><i></i><i class="hit"></i><i></i></div>') +
+    '<span class="corner c1"></span><span class="corner c2"></span><span class="corner c3"></span><span class="corner c4"></span>' +
+    (state.busy ? '<span class="beam"></span><span class="status" id="prog">' + t.reading + '…</span>' : '') + '</div>';
+  if (!state.busy) {
+    h += '<label class="shutter" title="' + t.snap + '"><input type="file" id="camera" accept="image/*" capture="environment" aria-label="' + t.snap + '"></label>';
+    h += '<p class="muted center">' + t.tip + '</p>';
+    if (state.failed) h += '<p class="alert">' + t.fail + '</p>';
+    if (state.typing) h += '<div class="card"><label for="typed">' + t.typeL + '<textarea id="typed"></textarea></label><button class="btn" type="button" id="go">' + t.go + '</button></div>';
+    h += '<div class="links"><label class="link">' + t.pick + '<input type="file" id="library" accept="image/*"></label>' +
+      (state.typing ? '' : '<button class="link" type="button" id="type">' + t.type + '</button>') +
+      '<button class="link" type="button" data-ex="sum">' + t.ex1 + '</button><button class="link" type="button" data-ex="sc">' + t.ex2 + '</button></div>';
+  }
+  return h;
+}
+
+function resultScreen(t) {
+  var p = parsePaper(state.text), h = "";
+  h += '<div class="pill" role="group">' + t.tabs.map(function (x, i) { return '<button type="button" data-tab="' + i + '" aria-pressed="' + (state.tab === i) + '">' + x + '</button>'; }).join("") + '</div>';
+  var due = null, label = "";
+  if (p.form === "sum" && state.served) { due = addCourtDays(fromIso(state.served), 10); label = t.deadline; }
+  if (p.form === "sc" && p.date) { due = p.date; label = t.hearing; }
+
+  if (state.tab === 0) {
+    if (!p.form) h += '<div class="card"><p class="alert">' + t.unknown + '</p></div>';
+    else {
+      h += '<div class="card solid"><h2>' + (p.form === "sum" ? t.sumName : t.scName) + '</h2>';
+      if (p.form === "sum") {
+        h += '<label for="served">' + t.servedL + '<input type="date" id="served" value="' + esc(state.served) + '"></label>' +
+          '<label for="how">' + t.howL + '<select id="how"><option value="1"' + (state.how === "1" ? " selected" : "") + '>' + t.how1 + '</option><option value="2"' + (state.how === "2" ? " selected" : "") + '>' + t.how2 + '</option></select></label>';
+      }
+      if (due) {
+        var now = new Date(), days = Math.round((mk(due.getFullYear(), due.getMonth(), due.getDate()) - mk(now.getFullYear(), now.getMonth(), now.getDate())) / 864e5);
+        h += '<div><div class="label">' + label + '</div><div class="big">' + esc(longDate(due)) + (p.form === "sc" && p.hour != null ? '<br>' + t.at + ' ' + clock(p.hour, p.min) : '') + '</div></div>';
+        h += days < 0 ? '<p class="alert">' + t.passed + '</p>' : '<p><strong>' + t.left(days) + '</strong></p>';
+        if (p.form === "sum" && state.how === "2") h += '<p class="alert">' + t.how2Note + '</p>';
+        h += '<a class="btn" target="_blank" rel="noopener" href="' + esc(calLink(p, due, (label + " " + (p.caseNo || "")).trim())) + '">' + t.cal + '</a>';
+      } else if (p.form === "sc") h += '<p class="alert">' + t.noDate + '</p>';
+      h += '</div>';
+      h += '<div class="card"><p>' + (p.form === "sum" ? t.sumPlain : t.scPlain) + '</p>' + (p.form === "sum" ? '<p class="muted">' + t.rule + '</p>' : '') + '</div>';
+      h += '<div class="card"><h2>' + t.dayH + '</h2><ul>' + t.day.map(function (x) { return '<li>' + x + '</li>'; }).join("") + '</ul></div>';
+    }
+  }
+
+  if (state.tab === 1) {
+    var when = p.form === "sc" && due ? "Hearing date: " + due.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) + (p.hour != null ? " at " + clock(p.hour, p.min) : "") + (p.dept ? ", Department " + p.dept : "") + "\n" : "";
+    var msg = "To the court clerk:\nI need a free court interpreter for " + (when ? "my hearing" : "every hearing in my case") + ".\nLanguage: " + state.interp + "\nCase number: " + (p.caseNo || "________") + "\n" + when + "My name: ________\nThank you.";
+    var card = "I need a " + state.interp + " interpreter." + (p.caseNo ? " My case number is " + p.caseNo + "." : "") + (p.form === "sc" && p.dept ? " My hearing is in Department " + p.dept + "." : "") + " Where do I go?";
+    h += '<div class="card"><p>' + t.intP + '</p><label for="interp">' + t.intL + '<select id="interp">' + LANGS.map(function (l) { return '<option' + (l === state.interp ? " selected" : "") + '>' + l + '</option>'; }).join("") + '</select></label></div>';
+    h += '<div class="card solid"><h2>' + t.cardH + '</h2><p class="show" lang="en">' + esc(card) + '</p></div>';
+    h += '<div class="card"><h2>' + t.reqH + '</h2><p class="muted">' + t.reqP + '</p><div class="msg" id="msg" lang="en">' + esc(msg) + '</div><button class="btn soft" type="button" id="copy">' + t.copy + '</button></div>';
+    h += '<div class="card"><h2>' + t.sayH + '</h2><div class="rows">' + PHRASES.map(function (x) { return '<div><strong lang="en">' + x[0] + '</strong>' + (state.lang === "es" ? '<span class="muted">' + x[1] + '</span>' : '') + '</div>'; }).join("") + '</div></div>';
+  }
+
+  if (state.tab === 2) {
+    var formName = p.form === "sum" ? "SUM-130" : p.form === "sc" ? "SC-100" : t.none;
+    h += '<div class="card"><h2>' + t.foundH + '</h2><div class="rows">' +
+      '<div><span class="muted">' + t.form + '</span><strong>' + formName + '</strong></div>' +
+      '<div><span class="muted">' + t.caseNo + '</span><strong>' + esc(p.caseNo || t.none) + '</strong></div>' +
+      '<div><span class="muted">' + t.court + '</span><strong>' + (p.court ? esc(p.court.name) : t.none) + '</strong>' + (p.court ? '<span>' + esc(p.court.addr) + '</span>' : '') + '</div>' +
+      (p.form === "sc" ? '<div><span class="muted">' + t.dept + '</span><strong>' + esc(p.dept || t.none) + '</strong></div>' : '') + '</div></div>';
+    h += '<div class="card"><h2>' + t.textH + '</h2>' + (state.fixing
+      ? '<textarea id="fixed" aria-label="' + t.textH + '">' + esc(state.text) + '</textarea><button class="btn" type="button" id="refix">' + t.go + '</button>'
+      : '<div class="doc">' + highlight(state.text, p.found) + '</div><button class="btn soft" type="button" id="fix">' + t.fix + '</button>') + '</div>';
+    var words = GLOSSARY.filter(function (g) { return g.re.test(state.text); });
+    if (words.length) h += '<div class="card"><h2>' + t.wordsH + '</h2><div class="rows">' + words.map(function (g) {
+      return '<div><strong>' + g.en + (state.lang === "es" ? ' = ' + g.es : '') + '</strong><span>' + (state.lang === "es" ? g.des : g.den) + '</span></div>'; }).join("") + '</div></div>';
+  }
+  h += '<div class="links"><button class="link" type="button" id="again">' + t.again + '</button></div>';
+  return h;
+}
+
+function render() {
+  var t = T[state.lang];
+  document.querySelectorAll("header .pill button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.lang === state.lang)); });
+  document.documentElement.lang = state.lang;
+  app.innerHTML = state.screen === "scan" ? scanScreen(t) : resultScreen(t);
+  document.getElementById("foot").innerHTML = t.foot + '<a href="https://selfhelp.courts.ca.gov/" target="_blank" rel="noopener">' + t.footLink + '</a>.';
+}
+function open(text) { state.text = text; state.screen = "result"; state.tab = 0; state.busy = false; state.failed = false; state.typing = false; state.fixing = false; render(); window.scrollTo(0, 0); }
+function scan(file) {
+  if (!file) return;
+  if (state.photo) URL.revokeObjectURL(state.photo);
+  state.photo = URL.createObjectURL(file); state.busy = true; state.failed = false; render();
+  var fail = function () { state.busy = false; state.failed = true; state.typing = true; render(); };
+  try {
+    readPhoto(file, function (f) { var el = document.getElementById("prog"); if (el) el.textContent = T[state.lang].reading + " " + Math.round(f * 100) + "%"; })
+      .then(function (text) { if (text && text.trim().length > 20) open(text); else fail(); }, fail);
+  } catch (e) { fail(); }
+}
+
+// ================= 6. Buttons =================
+document.querySelectorAll("header .pill button").forEach(function (b) { b.addEventListener("click", function () { state.lang = b.dataset.lang; render(); }); });
+app.addEventListener("click", function (e) {
+  var b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.ex) { state.served = b.dataset.ex === "sum" ? "2026-10-01" : ""; state.photo = null; open(EXAMPLES[b.dataset.ex]); }
+  else if (b.dataset.tab) { state.tab = +b.dataset.tab; state.fixing = false; render(); }
+  else if (b.id === "type") { state.typing = true; render(); document.getElementById("typed").focus(); }
+  else if (b.id === "go") { var v = document.getElementById("typed").value; if (v.trim()) open(v); }
+  else if (b.id === "fix") { state.fixing = true; render(); }
+  else if (b.id === "refix") { state.text = document.getElementById("fixed").value; state.fixing = false; render(); }
+  else if (b.id === "again") { state.screen = "scan"; state.photo = null; state.served = ""; render(); window.scrollTo(0, 0); }
+  else if (b.id === "copy") {
+    var box = document.getElementById("msg"), done = function () { b.textContent = T[state.lang].copied; };
+    var pick = function () { var r = document.createRange(); r.selectNodeContents(box); var s = getSelection(); s.removeAllRanges(); s.addRange(r); };
+    try { navigator.clipboard.writeText(box.textContent).then(done, pick); } catch (err) { pick(); }
+  }
+});
+app.addEventListener("change", function (e) {
+  var id = e.target.id;
+  if (id === "camera" || id === "library") return scan(e.target.files[0]);
+  if (id === "served") state.served = e.target.value;
+  else if (id === "how") state.how = e.target.value;
+  else if (id === "interp") state.interp = e.target.value;
+  else return;
+  render();
+});
+render();
+</script>
+</body>
+</html>
