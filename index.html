@@ -36,7 +36,7 @@ p { margin: 0; }
 /* scanner */
 .finder { position: relative; aspect-ratio: 3 / 4; max-width: 100%; border-radius: 28px; overflow: hidden; border: 2px solid var(--edge); box-shadow: var(--shadow);
   background: radial-gradient(120% 80% at 20% 15%, #F9C9B4 0%, transparent 60%), radial-gradient(90% 70% at 85% 30%, #CFE3D2 0%, transparent 60%), radial-gradient(120% 90% at 50% 100%, #D9C6EC 0%, transparent 65%), #F3ECEC; display: grid; place-items: center; }
-.finder img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.finder img, .finder video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .sheet { width: 58%; aspect-ratio: 17 / 22; background: var(--solid); border-radius: 6px; box-shadow: 0 8px 24px rgba(80,60,80,.18); padding: 9% 8%; display: flex; flex-direction: column; gap: 6%; box-sizing: border-box; }
 .sheet i { height: 4%; border-radius: 9px; background: var(--line); }
 .sheet i.hit { background: var(--mark); width: 55%; }
@@ -48,7 +48,7 @@ p { margin: 0; }
 .beam { position: absolute; left: 6%; right: 6%; height: 3px; border-radius: 3px; background: var(--accent); box-shadow: 0 0 14px var(--accent); animation: sweep 1.8s ease-in-out infinite alternate; }
 @keyframes sweep { from { top: 8%; } to { top: 92%; } }
 .status { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--solid); padding: .45rem 1rem; border-radius: 999px; font-weight: 500; white-space: nowrap; }
-.shutter { align-self: center; width: 78px; height: 78px; border-radius: 50%; background: var(--solid); border: 5px solid var(--accent); box-shadow: var(--shadow); cursor: pointer; display: grid; place-items: center; }
+.shutter { padding: 0; align-self: center; width: 78px; height: 78px; border-radius: 50%; background: var(--solid); border: 5px solid var(--accent); box-shadow: var(--shadow); cursor: pointer; display: grid; place-items: center; }
 .shutter::after { content: ""; width: 54px; height: 54px; border-radius: 50%; background: var(--accent); }
 .shutter input, .link input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .center { text-align: center; }
@@ -100,7 +100,7 @@ var T = {
   en: {
     h1: "Scan your court paper", intro: "Take a photo. You'll get your date and what to do next.",
     snap: "Take a photo of the paper", pick: "Choose a photo", type: "Type it instead", ex1: "Try an eviction example", ex2: "Try a small claims example",
-    reading: "Reading", tip: "Lay the paper flat in good light and fill the frame.",
+    reading: "Reading", tip: "Lay the paper flat in good light and fill the frame.", camTip: "Tap the button to open the camera.", shootTip: "Fit the paper in the frame, then tap the button.", camFail: "The camera could not be opened. Choose a photo instead.",
     fail: "The photo could not be read here. Type the words from the paper instead.",
     typeL: "Words on the paper", go: "Read this paper", again: "Scan another paper",
     tabs: ["Date", "Interpreter", "Paper"],
@@ -126,7 +126,7 @@ var T = {
   es: {
     h1: "Escanee su papel de la corte", intro: "Tome una foto. Verá su fecha y qué hacer después.",
     snap: "Tomar una foto del papel", pick: "Elegir una foto", type: "Escribirlo", ex1: "Probar un ejemplo de desalojo", ex2: "Probar un ejemplo de reclamos menores",
-    reading: "Leyendo", tip: "Ponga el papel plano, con buena luz, y llene el marco.",
+    reading: "Leyendo", tip: "Ponga el papel plano, con buena luz, y llene el marco.", camTip: "Toque el botón para abrir la cámara.", shootTip: "Ponga el papel dentro del marco y toque el botón.", camFail: "No se pudo abrir la cámara. Elija una foto.",
     fail: "No se pudo leer la foto aquí. Escriba las palabras del papel.",
     typeL: "Palabras del papel", go: "Leer este papel", again: "Escanear otro papel",
     tabs: ["Fecha", "Intérprete", "Papel"],
@@ -237,7 +237,8 @@ function isCourtDay(d) {
 function addCourtDays(start, n) { var d = new Date(start); while (n > 0) { d.setDate(d.getDate() + 1); if (isCourtDay(d)) n--; } return d; }
 
 // ================= 5. Screens =================
-var state = { lang: "en", screen: "scan", tab: 0, text: "", served: "", how: "1", interp: "Spanish", busy: false, photo: null, typing: false, failed: false, fixing: false };
+var state = { lang: "en", screen: "scan", tab: 0, text: "", served: "", how: "1", interp: "Spanish", busy: false, photo: null, typing: false, failed: false, fixing: false, cam: "off" };
+var stream = null, canLive = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 var LANGS = ["Spanish", "Armenian", "Korean", "Tagalog", "Russian", "Farsi", "Vietnamese", "Mandarin", "Cantonese", "K'iche'", "Mixteco", "Zapoteco"];
 var app = document.getElementById("app");
 function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
@@ -256,12 +257,14 @@ function calLink(p, date, title) {
 
 function scanScreen(t) {
   var h = '<div class="stack center"><h1>' + t.h1 + '</h1><p>' + t.intro + '</p></div>';
-  h += '<div class="finder">' + (state.photo ? '<img alt="" src="' + state.photo + '">' : '<div class="sheet" aria-hidden="true"><i></i><i></i><i class="hit"></i><i></i><i></i><i class="hit"></i><i></i></div>') +
+  h += '<div class="finder">' + (state.photo ? '<img alt="" src="' + state.photo + '">' : state.cam === "on" ? '<video id="live" autoplay playsinline muted></video>' : '<div class="sheet" aria-hidden="true"><i></i><i></i><i class="hit"></i><i></i><i></i><i class="hit"></i><i></i></div>') +
     '<span class="corner c1"></span><span class="corner c2"></span><span class="corner c3"></span><span class="corner c4"></span>' +
     (state.busy ? '<span class="beam"></span><span class="status" id="prog">' + t.reading + '…</span>' : '') + '</div>';
   if (!state.busy) {
-    h += '<label class="shutter" title="' + t.snap + '"><input type="file" id="camera" accept="image/*" capture="environment" aria-label="' + t.snap + '"></label>';
-    h += '<p class="muted center">' + t.tip + '</p>';
+    // Live camera where the browser allows it; otherwise the button opens the phone camera or a file picker.
+    if (canLive && state.cam !== "denied") h += '<button class="shutter" type="button" id="' + (state.cam === "on" ? "shoot" : "startcam") + '" aria-label="' + t.snap + '"></button>';
+    else h += '<label class="shutter" title="' + t.snap + '"><input type="file" id="camera" accept="image/*" capture="environment" aria-label="' + t.snap + '"></label>';
+    h += '<p class="muted center">' + (state.cam === "on" ? t.shootTip : state.cam === "denied" ? t.camFail : canLive ? t.camTip : t.tip) + '</p>';
     if (state.failed) h += '<p class="alert">' + t.fail + '</p>';
     if (state.typing) h += '<div class="card"><label for="typed">' + t.typeL + '<textarea id="typed"></textarea></label><button class="btn" type="button" id="go">' + t.go + '</button></div>';
     h += '<div class="links"><label class="link">' + t.pick + '<input type="file" id="library" accept="image/*"></label>' +
@@ -332,9 +335,22 @@ function render() {
   document.querySelectorAll("header .pill button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.lang === state.lang)); });
   document.documentElement.lang = state.lang;
   app.innerHTML = state.screen === "scan" ? scanScreen(t) : resultScreen(t);
+  var live = document.getElementById("live"); if (live && stream) live.srcObject = stream;
   document.getElementById("foot").innerHTML = t.foot + '<a href="https://selfhelp.courts.ca.gov/" target="_blank" rel="noopener">' + t.footLink + '</a>.';
 }
-function open(text) { state.text = text; state.screen = "result"; state.tab = 0; state.busy = false; state.failed = false; state.typing = false; state.fixing = false; render(); window.scrollTo(0, 0); }
+function stopCam() { if (stream) stream.getTracks().forEach(function (k) { k.stop(); }); stream = null; if (state.cam === "on") state.cam = "off"; }
+function startCam() {
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false })
+    .then(function (s) { stream = s; state.cam = "on"; state.photo = null; state.failed = false; render(); },
+          function () { state.cam = "denied"; render(); });
+}
+function shoot() {
+  var v = document.getElementById("live"); if (!v || !v.videoWidth) return;
+  var c = document.createElement("canvas"); c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext("2d").drawImage(v, 0, 0);
+  c.toBlob(function (blob) { stopCam(); scan(blob); }, "image/jpeg", 0.92);
+}
+function open(text) { stopCam(); state.text = text; state.screen = "result"; state.tab = 0; state.busy = false; state.failed = false; state.typing = false; state.fixing = false; render(); window.scrollTo(0, 0); }
 function scan(file) {
   if (!file) return;
   if (state.photo) URL.revokeObjectURL(state.photo);
@@ -350,7 +366,9 @@ function scan(file) {
 document.querySelectorAll("header .pill button").forEach(function (b) { b.addEventListener("click", function () { state.lang = b.dataset.lang; render(); }); });
 app.addEventListener("click", function (e) {
   var b = e.target.closest("button"); if (!b) return;
-  if (b.dataset.ex) { state.served = b.dataset.ex === "sum" ? "2026-10-01" : ""; state.photo = null; open(EXAMPLES[b.dataset.ex]); }
+  if (b.id === "startcam") startCam();
+  else if (b.id === "shoot") shoot();
+  else if (b.dataset.ex) { state.served = b.dataset.ex === "sum" ? "2026-10-01" : ""; state.photo = null; open(EXAMPLES[b.dataset.ex]); }
   else if (b.dataset.tab) { state.tab = +b.dataset.tab; state.fixing = false; render(); }
   else if (b.id === "type") { state.typing = true; render(); document.getElementById("typed").focus(); }
   else if (b.id === "go") { var v = document.getElementById("typed").value; if (v.trim()) open(v); }
@@ -365,7 +383,7 @@ app.addEventListener("click", function (e) {
 });
 app.addEventListener("change", function (e) {
   var id = e.target.id;
-  if (id === "camera" || id === "library") return scan(e.target.files[0]);
+  if (id === "camera" || id === "library") { stopCam(); return scan(e.target.files[0]); }
   if (id === "served") state.served = e.target.value;
   else if (id === "how") state.how = e.target.value;
   else if (id === "interp") state.interp = e.target.value;
